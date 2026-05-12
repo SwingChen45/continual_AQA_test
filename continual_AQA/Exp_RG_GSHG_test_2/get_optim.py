@@ -1,0 +1,116 @@
+import torch
+import torch.optim as optim
+
+def get_optim(model_, score_rgs, diff_rgs, args, optim_id=1):
+    net = model_.module if hasattr(model_, 'module') else model_
+    if hasattr(net, 'gshg'):
+        graph_lr = getattr(args, 'gshg_graph_lr', 0.001)
+        hyper_lr = getattr(args, 'gshg_hyper_lr', 0.0005)
+        optimizer = optim.Adam(
+            [
+                {'params': [net.gshg.hyper_edge_weight_gen], 'weight_decay': 0, 'lr': graph_lr},
+                {'params': [net.gshg.hyper_edge_weight_spec], 'weight_decay': 0, 'lr': graph_lr},
+                {'params': [net.gshg.hyper_alpha], 'weight_decay': 0, 'lr': hyper_lr},
+                {'params': [net.gshg.edge_importance], 'weight_decay': 0, 'lr': hyper_lr},
+                {'params': [net.gshg.hyper_joint], 'weight_decay': args.weight_decay, 'lr': hyper_lr},
+                {'params': net.gshg.to_V.parameters(), 'weight_decay': args.weight_decay, 'lr': hyper_lr},
+                {'params': net.gshg.to_W.parameters(), 'weight_decay': args.weight_decay, 'lr': hyper_lr},
+                {'params': net.gshg.conv_d.parameters(), 'weight_decay': args.weight_decay},
+                {'params': net.temporal.parameters(), 'weight_decay': args.weight_decay},
+                {'params': net.regressor.parameters(), 'weight_decay': args.weight_decay},
+                {'params': score_rgs.parameters(), 'weight_decay': args.weight_decay},
+                {'params': diff_rgs.parameters(), 'weight_decay': args.weight_decay},
+            ],
+            lr=args.base_lr
+        )
+        optimizer2 = optim.SGD([
+            {'params': filter(lambda p: p.requires_grad, model_.parameters()), 'lr': args.base_lr * args.lr_factor},
+            {'params': score_rgs.parameters()},
+            {'params': diff_rgs.parameters()}
+        ], lr=args.base_lr, weight_decay=args.weight_decay)
+        optimizer3 = optim.Adam([
+            {'params': filter(lambda p: p.requires_grad, model_.parameters()), 'lr': args.base_lr * args.lr_factor},
+            {'params': score_rgs.parameters()},
+            {'params': diff_rgs.parameters()}
+        ], lr=args.base_lr, weight_decay=args.weight_decay)
+        optimizer4 = optim.SGD(optimizer.param_groups, lr=args.base_lr)
+        if optim_id == 1:
+            print('gshg_optim_1')
+            return optimizer
+        elif optim_id == 2:
+            print('gshg_optim_2')
+            return optimizer2
+        elif optim_id == 3:
+            print('gshg_optim_3')
+            return optimizer3
+        elif optim_id == 4:
+            print('gshg_optim_4')
+            return optimizer4
+
+    optimizer = optim.Adam(
+            [
+            {'params':model_.module.general_spatial_mats, 'weight_decay':0, 'lr': 0.01},
+            {'params':model_.module.general_temporal_mats, 'weight_decay':0, 'lr': 0.01},
+            {'params':model_.module.spatial_mats, 'weight_decay':0, 'lr': 0.01},
+            {'params':model_.module.temporal_mats, 'weight_decay':0, 'lr': 0.01},
+            {'params':model_.module.spatial_JCWs, 'weight_decay':args.weight_decay},
+            {'params':model_.module.temporal_JCWs, 'weight_decay':args.weight_decay},
+            {'params':model_.module.encoders_whole.parameters(), 'weight_decay':args.weight_decay},
+            {'params':model_.module.encoders_diffwhole.parameters(), 'weight_decay':args.weight_decay},
+            {'params':model_.module.encoders_comm0.parameters(), 'weight_decay':args.weight_decay},
+            {'params':model_.module.encoders_comm1.parameters(), 'weight_decay':args.weight_decay},
+            {'params':model_.module.encoders_diff0.parameters(), 'weight_decay':args.weight_decay},
+            {'params':model_.module.encoders_diff1.parameters(), 'weight_decay':args.weight_decay},
+            {'params':model_.module.whole_fuse.parameters(), 'weight_decay':args.weight_decay},
+            {'params':model_.module.diffwhole_fuse.parameters(), 'weight_decay':args.weight_decay},
+            {'params':model_.module.regressor.parameters(), 'weight_decay':args.weight_decay},
+            {'params':model_.module.last_fuse.parameters(), 'weight_decay':args.weight_decay},
+            {'params': score_rgs.parameters(), 'weight_decay':args.weight_decay},
+            {'params': diff_rgs.parameters(), 'weight_decay':args.weight_decay}]
+        , lr=args.base_lr)
+
+    optimizer2 = optim.SGD([
+                {'params': filter(lambda p: p.requires_grad, model_.parameters()), 'lr': args.base_lr * args.lr_factor},
+                {'params': score_rgs.parameters()},
+                {'params': diff_rgs.parameters()}
+            ], lr=args.base_lr, weight_decay=args.weight_decay)
+
+    optimizer3 = optim.Adam([
+                {'params': filter(lambda p: p.requires_grad, model_.parameters()), 'lr': args.base_lr * args.lr_factor},
+                {'params': score_rgs.parameters()},
+                {'params': diff_rgs.parameters()}
+            ], lr=args.base_lr, weight_decay=args.weight_decay)
+
+    optimizer4 = optim.SGD(
+        [
+            {'params':model_.module.general_spatial_mats, 'weight_decay':0, 'lr': 0.01},
+            {'params':model_.module.general_temporal_mats, 'weight_decay':0, 'lr': 0.01},
+            {'params':model_.module.spatial_mats, 'weight_decay':0, 'lr': 0.01},
+            {'params':model_.module.temporal_mats, 'weight_decay':0, 'lr': 0.01},
+            {'params':model_.module.spatial_JCWs, 'weight_decay':args.weight_decay},
+            {'params':model_.module.temporal_JCWs, 'weight_decay':args.weight_decay},
+            {'params':model_.module.encoders_whole.parameters(), 'weight_decay':args.weight_decay},
+            {'params':model_.module.encoders_diffwhole.parameters(), 'weight_decay':args.weight_decay},
+            {'params':model_.module.encoders_comm0.parameters(), 'weight_decay':args.weight_decay},
+            {'params':model_.module.encoders_comm1.parameters(), 'weight_decay':args.weight_decay},
+            {'params':model_.module.encoders_diff0.parameters(), 'weight_decay':args.weight_decay},
+            {'params':model_.module.encoders_diff1.parameters(), 'weight_decay':args.weight_decay},
+            {'params':model_.module.whole_fuse.parameters(), 'weight_decay':args.weight_decay},
+            {'params':model_.module.diffwhole_fuse.parameters(), 'weight_decay':args.weight_decay},
+            {'params':model_.module.regressor.parameters(), 'weight_decay':args.weight_decay},
+            {'params':model_.module.last_fuse.parameters(), 'weight_decay':args.weight_decay},
+            {'params': score_rgs.parameters(), 'weight_decay':args.weight_decay},
+            {'params': diff_rgs.parameters(), 'weight_decay':args.weight_decay}]
+    , lr=args.base_lr)
+    if optim_id == 1:
+        print('optim_1')
+        return optimizer
+    elif optim_id == 2:
+        print('optim_2')
+        return optimizer2
+    elif optim_id == 3:
+        print('optim_3')
+        return optimizer3
+    elif optim_id == 4:
+        print('optim_4')
+        return optimizer4
